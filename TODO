@@ -1,0 +1,5 @@
+
+1. "/enqueue" needs to have some way for the user to specify what tests they want to execute
+ a regex on the test name?
+ some kind of properties specifier? json?
+ (consider multiple endpoints, eg. enqueue-regex, for different methods of this specification)
