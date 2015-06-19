@@ -1,0 +1,4 @@
+ZIMA is the oar-frontend wrapper that will:
+ * take a message from bamboo or a developer and run oarsub many times
+ * possibly have some queue status view
+ * possibly have some agent status view

@@ -1,0 +1,5 @@
+##if you want to update this thing and deploy the new version, simply:
+##on baldwin:
+rsync --exclude TODO --exclude README --exclude DEPLOY --exclude INSTALL --exclude .gitignore --exclude .git -r . acharis@base:/usr/local/zima
+ssh -t base "sudo pkill -f run.fcgi"
+

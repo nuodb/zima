@@ -1,0 +1,7 @@
+1. directory layout on deployment machine
+
+2. /etc/apache2/sites-available/default relevant bits:
+
+3. python required packages, operating system required packages
+
+4. any other dependencies/authentication setup tasks
