@@ -1,0 +1,9 @@
+TODO
+README
+DEPLOY
+INSTALL
+.gitignore
+.git
+*pyc
+*~
+.rsyncignore
