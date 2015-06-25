@@ -12,3 +12,4 @@ bamboo.buildResultKey = MASTER-NPB-LINUX-670
 bamboo.repository.branch.name = master
 
 
+Charlie's idea of having machine characteristics boiled down into classes seems like a simplifying win

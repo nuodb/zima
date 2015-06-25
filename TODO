@@ -3,3 +3,6 @@
  a regex on the test name?
  some kind of properties specifier? json?
  (consider multiple endpoints, eg. enqueue-regex, for different methods of this specification)
+
+2. wire in some way to make some jobs hi-pri
+

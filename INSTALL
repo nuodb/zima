@@ -1,7 +1,18 @@
 1. directory layout on deployment machine
+base: /usr/local/zima
+chmod a+w
 
 2. /etc/apache2/sites-available/default relevant bits:
+ScriptAlias /zima "/usr/local/zima/run.fcgi"
+<Directory "/usr/local/zima/">
+  Options Indexes FollowSymLinks
+  Order deny,allow
+  Deny from all
+  Allow from 127.0.0.1 10.3.0.0/16 10.1.0.0/16
+</Directory>
 
 3. python required packages, operating system required packages
+
+beautifulsoup4
 
 4. any other dependencies/authentication setup tasks
