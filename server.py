@@ -12,8 +12,9 @@ app.config['PROPAGATE_EXCEPTIONS'] = True
 SUITE_FILE = "suites.json"
 
 def submit_single(job_desc, branch, build_url):
-    properties = "{network_address='p81'}"
-    cmd = ["oarsub", "-l", properties, "-d", "/home/build", "/home/acharis/bin/test.sh {} {} {}".format(job_desc, branch, build_url)]
+    #consider NamedTuple for job_desc
+    properties = "{ssd=1}/host=%s+{ssd=0}/host=%s" % (job_desc['SM'], job_desc['TE'])
+    cmd = ["oarsub", "-l", properties, "-d", "/home/build", "/home/acharis/bin/run-evil.sh {}".format(build_url)]
     #app.logger.info("command: {}".format(" ".join(cmd)))
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     (out, err) = p.communicate()
@@ -25,7 +26,7 @@ def submit(suite, branch, build_url):
     result = {}
     for job_desc in config_data[suite]:
         app.logger.info("calling submit_single with job_desc: {}".format(job_desc))
-        result[job_desc] = submit_single(job_desc, branch, build_url)
+        result[job_desc['name']] = submit_single(job_desc, branch, build_url)
     return result
 
 @app.route('/enqueue')

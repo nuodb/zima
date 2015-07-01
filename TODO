@@ -6,3 +6,7 @@
 
 2. wire in some way to make some jobs hi-pri
 
+3. need to keep in mind the developer just wants a machine use-case
+  in OAR, an interactive job? how do they connect?
+
+4. need to make a build/bld wrapper for these things
