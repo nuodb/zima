@@ -1,6 +1,0 @@
-{
-	"ycsb": [
-		{"name": "first ycsb", 	"TE": 3, "SM": 1 }
-	],
-	"dbt2": ["more data"]
-}
