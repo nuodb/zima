@@ -72,7 +72,7 @@ def enqueue():
     branch = request.args.get('branch', 'master', type=str)
     parent_build_id = request.args.get('buildResultKey', type=str)#bamboo id for NPB, etc
     try: #fail fast
-        build_url = get_link(build_result_key)
+        build_url = get_link(parent_build_id)
     except NoSuchBuildException:
         return jsonify(error="no such build")
     result = submit(suite, branch, parent_build_id, get_result_dir())
