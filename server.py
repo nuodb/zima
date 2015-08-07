@@ -70,7 +70,7 @@ def submit(suite, branch, parent_build_id, token):
 def enqueue():
     suite = request.args.get('suite', '', type=str)
     branch = request.args.get('branch', 'master', type=str)
-    parent_build_id = request.args.get('buildResultKey', type=str)#bamboo id for NPB, etc
+    parent_build_id = request.args.get('buildid', type=str)#bamboo id for NPB, etc
     try: #fail fast
         build_url = get_link(parent_build_id)
     except NoSuchBuildException:
