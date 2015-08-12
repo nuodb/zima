@@ -26,10 +26,6 @@ def submit_single(test_def_fn, test_def, parent_build_id, token):
     #ALEX: set project=token
     cmd.append("-d")
     cmd.append("/var/local")
-    cmd.append("-O")
-    cmd.append("/var/local/testtmp-"+token+"/output")
-    cmd.append("-E")
-    cmd.append("/var/local/testtmp-"+token+"/error")
     cmd.append("/home/build/perf/runner {} {} {}".format(test_def_fn, parent_build_id, token))
     #app.logger.info("command: {}".format(" ".join(cmd)))
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
@@ -46,7 +42,7 @@ def submit_micro(branch, build_id):
     cmd.append("-l")
     cmd.append("/host=1,walltime=4:0:0")
     cmd.append("-d")
-    cmd.append("/home/build")
+    cmd.append("/var/local")
     cmd.append("TERM=dumb /home/build/arewefastyet/kickoff-micro -i 5 {} micro {} MASTER".format(build_id, branch))
     #can't make it optional in kickoff, so hardcode since we don't gather-cores for micro anyway
     app.logger.info("command: {}".format(" ".join(cmd)))
@@ -60,7 +56,7 @@ def submit(suite, branch, parent_build_id, token):
     result = {}
     tests = [fn for fn in os.listdir(TEST_DIR) if suite in fn]
     for fn in tests:
-        with open(fn, 'r') as fd:
+        with open(os.path.join(TEST_DIR,fn), 'r') as fd:
             test_def = fd.read()
         app.logger.info("calling submit_single with job: {}".format(fn))
         result[fn] = submit_single(fn, test_def, parent_build_id, token)
@@ -140,7 +136,7 @@ def get_result_dir():
 
 def parse_job_desc(test_def):
     def parse_kv(k, _, v):
-        return k, int(v)
+        return k, v
     return dict([parse_kv(*x.partition("=")) for x in test_def.strip().split('\n')])
 
 def check_job_desc(job_desc):
