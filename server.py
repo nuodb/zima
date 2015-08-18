@@ -187,7 +187,7 @@ def artifact_collect():
         return jsonify(ERROR="missing token")
     with open(os.path.join(RESULT_DIR,token,artifact.filename), 'w') as fd:
         artifact.save(fd)
-    return jsonify(resp="OK")
+    return ('OK\n', 200)
 
 @app.route('/junit_serve')
 def junit_serve():
