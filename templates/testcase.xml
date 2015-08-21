@@ -1,4 +1,4 @@
-<testcase classname="tc.name" name="tc.name" time="{{ tc.run_time_seconds }}">
+<testcase classname="{{ tc.name }}" name="{{ tc.name }}" time="{{ tc.run_time_seconds }}">
 <system-out><![CDATA[
 {% include aggregate_data.token ~ "/OAR." ~ tc.jobid ~ ".stdout" %}
 ]]></system-out>
