@@ -13,8 +13,8 @@ handler = RotatingFileHandler('/tmp/zima.log', maxBytes=10000, backupCount=1)
 handler.setLevel(logging.INFO)
 app.logger.addHandler(handler)
 app.config['PROPAGATE_EXCEPTIONS'] = True
-#TEST_DIR = "/usr/local/zima/properties"
-TEST_DIR = "/usr/local/zima/test-properties"
+TEST_DIR = "/usr/local/zima/properties"
+#TEST_DIR = "/usr/local/zima/test-properties"
 RESULT_DIR = "/usr/local/zima/results"
 template_loader = jinja2.ChoiceLoader([app.jinja_loader, jinja2.FileSystemLoader(RESULT_DIR)])
 app.jinja_loader = template_loader
