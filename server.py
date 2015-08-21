@@ -226,9 +226,9 @@ def aggregate(job_data):
     tests = len(job_data)
     failures = 0
     totaltime = 0
-    for jobid in job_data:
-        failures += 0 if job_data[jobid][0] == 0 else 1
-        totaltime += job_data[jobid][1]
+    for jd in job_data:
+        failures += 0 if jd['status'] == 0 else 1
+        totaltime += jd['run_time_seconds']
     return {'tests':tests, 'failures': failures, 'totaltime': totaltime}
 
 @app.route('/get_junit/<token>')
