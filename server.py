@@ -135,6 +135,7 @@ def deactivate_token(tok):
                 tokens = json.load(fd)
                 parent_build_id, branch = tokens.pop(tok)
                 fd.seek(0)
+                fd.truncate()
                 json.dump(tokens, fd)
                 return parent_build_id, branch
         except:
