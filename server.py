@@ -12,7 +12,7 @@ app.logger.addHandler(handler)
 app.config['PROPAGATE_EXCEPTIONS'] = True
 #TEST_DIR = "/usr/local/zima/properties"
 TEST_DIR = "/usr/local/zima/test-properties"
-RESULT_DIR = "/usr/local/zima/results"
+RESULT_DIR = "/usr/local/zima/results" #mirrored in testcase.xml
 token_lock = Lock()
 TOKEN_FILE = "/usr/local/zima/tokens"
 BAMBOO_URL = "http://tools/bamboo/rest/api/latest/queue/MASTER-MBRC.json?executeAllStages"
@@ -56,9 +56,7 @@ def submit_micro(branch, build_id):
     (out, err) = p.communicate()
     return {'out':out, 'err':err}
 
-def submit(suite, branch, parent_build_id, token):
-    with open(os.path.join(RESULT_DIR,token,"branch"), 'w') as fd:
-        fd.write(branch)
+def submit(suite, parent_build_id, token):
     result = {}
     tests = [fn for fn in os.listdir(TEST_DIR) if suite in fn]
     for fn in tests:
@@ -70,22 +68,22 @@ def submit(suite, branch, parent_build_id, token):
 
 @app.route('/enqueue')
 def enqueue():
-    suite = request.args.get('suite', '', type=str)
+    suite = request.args.get('suite', '', type=str)#optional
     branch = request.args.get('branch', 'master', type=str)
     parent_build_id = request.args.get('buildid', type=str)#bamboo id for NPB, etc
     try: #fail fast
         build_url = get_link(parent_build_id)
     except NoSuchBuildException:
-        return jsonify(error="no such build")
-    result = submit(suite, branch, parent_build_id, get_result_dir(parent_build_id))
-    return jsonify(resp=result)
+        return ("ERROR: no such build", 404)
+    result = submit(suite, parent_build_id, get_result_dir(parent_build_id, branch))
+    return json.dumps(result)
 
 @app.route('/enqueue_micro')
 def enqueue_micro():
     branch = request.args.get('branch', 'master', type=str)
     build_id = request.args.get('buildid', type=str)
     result = submit_micro(branch, build_id)
-    return jsonify(resp=result)
+    return json.dumps(result)
 
 #@app.route('/enqueue_single', methods=['POST'])
 #def enqueue_single():
@@ -99,12 +97,14 @@ def kick():
     tokens = get_active_tokens()
     for tok in tokens:
         if oar_complete(tok):
-            #@init awfy, go through files and send results, finalize awfy
-            #@create junit files
-            parent_build_id = deactivate_token(tok)
-            mbrc_id = start_bamboo_job(tok)
+            submit_results(tok)
+            parent_build_id, branch = deactivate_token(tok)
+            mbrc_id = start_bamboo_job(tok, parent_build_id, branch)
             core_view_repoint(parent_build_id, mbrc_id, tok)
             return #only process one token at a time
+
+def submit_results(token):#init awfy, go through files and send results, finalize awfy
+    pass #not implemented yet...
 
 def core_view_repoint(parent_build_id, mbrc_id, token):
     fd = urllib2.urlopen(CORE_VIEW_URL.format(parent_build_id, mbrc_id, token))
@@ -116,9 +116,9 @@ def get_active_tokens():
     with token_lock:
         try:
             with open(TOKEN_FILE, 'r') as fd:
-                tokens = json.load(fd)
+                return json.load(fd)
         except:
-            return []
+            return {}
 
 def oar_complete(tok):
     p = subprocess.Popen(["oarstat", "--sql", "project = '{}' AND state not in ('Terminated', 'Error')".format(tok)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -132,31 +132,33 @@ def deactivate_token(tok):
         try:
             with open(TOKEN_FILE, 'r+') as fd:
                 tokens = json.load(fd)
-                parent_build_id = tokens.pop(tok)
+                parent_build_id, branch = tokens.pop(tok)
                 fd.seek(0)
                 json.dump(tokens, fd)
-                return parent_build_id
+                return parent_build_id, branch
         except:
             app.logger.warn("deactivate_token: open/loads/remove/seek/dump failed")
 
-def activate_token(tok, parent_build_id):
+def activate_token(tok, parent_build_id, branch):
     with token_lock:
         try:
             with open(TOKEN_FILE, 'r+') as fd:
                 tokens = json.load(fd)
-                tokens[tok] = parent_build_id
+                tokens[tok] = parent_build_id, branch
                 fd.seek(0)
                 json.dump(tokens, fd)
         except:
             with open(TOKEN_FILE, 'w') as fd:
                 tokens = {}
-                tokens[tok] = parent_build_id
+                tokens[tok] = parent_build_id, branch
                 json.dump(tokens, fd)
             app.logger.warn("activate_token: open/loads/append/seek/dump failed")
 
-def start_bamboo_job(token):
+def start_bamboo_job(token, parent_build_id, branch):
     data = urllib.urlencode({"os_username" : "build", 
                              "os_password" : "build", 
+                             "bamboo.variable.buildid" : parent_build_id, 
+                             "bamboo.variable.branch" : branch, 
                              "bamboo.variable.token": token})
     obj = json.load(urllib2.urlopen(BAMBOO_URL, data))
     return obj['buildResultKey']
@@ -167,43 +169,90 @@ def get_test_def(filename):
 
 @app.route('/job_status')
 def job_status():
-    return jsonify(error="ALEX: not yet implemented")
+    return ("ERROR: not yet implemented", 501)
 
 @app.route('/node_status')
 def node_status():
-    return jsonify(error="ALEX: not yet implemented")
+    return ("ERROR: not yet implemented", 501)
 
 @app.route('/build_status')
 def build_status():
     #synthetic based on 'project' in the OAR job
     # confirmed: www-data user can exec oarsub
-    return jsonify(error="ALEX: not yet implemented")
+    return ("ERROR: not yet implemented", 501)
 
 @app.route('/artifact_collect', methods=['POST'])
 def artifact_collect():
     artifact = request.files['artifact']
     token = request.form.get("token", None)
     if not token:
-        return jsonify(ERROR="missing token")
+        return ("ERROR: missing token", 400)
     with open(os.path.join(RESULT_DIR,token,artifact.filename), 'w') as fd:
         artifact.save(fd)
     return ('OK\n', 200)
 
-@app.route('/junit_serve')
-def junit_serve():
-    #prompted by bamboo, yield the junit file(s) requested
-    return jsonify(error="ALEX: not yet implemented")
+def get_job_data(token):
+    filenames = [fn for fn in os.listdir(os.path.join(RESULT_DIR, token)) if os.path.isfile(os.path.join(RESULT_DIR,token,fn))]
+    out_files = [fn for fn in filenames if fn[0:4] == 'OAR.' and fn[-7:] == '.stdout']
+    #OAR will create both out and err files, even if empty
+    jobids = [fn[4:-7] for fn in out_files]
+    job_data = {jobid:{'jobid':jobid} for jobid in jobids}
+    cmd = ["oarstat", "-Jf"]
+    for jobid in jobids:
+        cmd.append("-j")
+        cmd.append(jobid)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    (out, err) = p.communicate()#ALEX: handle error
+    obj = json.loads(out)
+
+    for jobid in jobids:
+        status = obj[jobid]["exit_code"] #ALEX: that can be null
+        run_time_seconds = obj[jobid]["stopTime"] - obj[jobid]["startTime"]
+        job_data[jobid]['status'] = status
+        job_data[jobid]['run_time_seconds'] = run_time_seconds
+        with open(os.path.join(RESULT_DIR, token, 'OAR.'+jobid+'.stdout'), 'r') as fd:
+            name = fd.readline().strip()
+        job_data[jobid]['name'] = name
+    return job_data.values()
+
+def aggregate(job_data):
+    tests = len(job_data)
+    failures = 0
+    totaltime = 0
+    for jobid in job_data:
+        failures += 0 if job_data[jobid][0] == 0 else 1
+        totaltime += job_data[jobid][1]
+    return {'tests':tests, 'failures': failures, 'totaltime': totaltime}
+
+@app.route('/get_junit/<token>')
+def get_junit(token):
+    job_data = get_job_data(token)
+    aggregate_data = aggregate(job_data)
+    aggregate_data['token'] = token
+    return render_template('junit.xml', aggregate_data=aggregate_data, job_data=job_data)
+
+@app.route('/get_stdout/<token>')
+def get_stdout(token):
+    filenames = [fn for fn in os.listdir(os.path.join(RESULT_DIR, token)) if os.path.isfile(os.path.join(RESULT_DIR,token,fn)) and fn[0:4] == 'OAR.' and fn[-7:] == '.stdout']
+    filenames.sort()
+    return render_template('log', filenames=filenames, token=token)
+
+@app.route('/get_stderr/<token>')
+def get_stderr(token):
+    filenames = [fn for fn in os.listdir(os.path.join(RESULT_DIR, token)) if os.path.isfile(os.path.join(RESULT_DIR,token,fn)) and fn[0:4] == 'OAR.' and fn[-7:] == '.stderr']
+    filenames.sort()
+    return render_template('log', filenames=filenames, token=token)
 
 @app.route('/')
 def show_index():
     return render_template('index.html')
 
-def get_result_dir(parent_build_id):
+def get_result_dir(parent_build_id, branch):
     while 1:
         candidate = "".join(random.SystemRandom().choice(string.ascii_uppercase) for x in range(12))
         if not os.path.isdir(os.path.join(RESULT_DIR,candidate)):
             os.mkdir(os.path.join(RESULT_DIR,candidate))
-            activate_token(candidate, parent_build_id)
+            activate_token(candidate, parent_build_id, branch)
             return candidate
 
 def parse_job_desc(test_def):
