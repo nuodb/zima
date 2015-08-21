@@ -101,7 +101,8 @@ def kick():
             parent_build_id, branch = deactivate_token(tok)
             mbrc_id = start_bamboo_job(tok, parent_build_id, branch)
             core_view_repoint(parent_build_id, mbrc_id, tok)
-            return #only process one token at a time
+            return (tok, 200)#only process one token at a time
+    return ('none complete', 200)
 
 def submit_results(token):#init awfy, go through files and send results, finalize awfy
     pass #not implemented yet...
