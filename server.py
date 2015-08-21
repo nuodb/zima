@@ -3,6 +3,9 @@ from flask import Flask, render_template, send_from_directory, request, jsonify,
 from artifact_link_finder import get_link, NoSuchBuildException
 from logging.handlers import RotatingFileHandler
 from threading import Lock
+import jinja2
+
+
 
 app = Flask(__name__)
 app.debug = True
@@ -12,7 +15,9 @@ app.logger.addHandler(handler)
 app.config['PROPAGATE_EXCEPTIONS'] = True
 #TEST_DIR = "/usr/local/zima/properties"
 TEST_DIR = "/usr/local/zima/test-properties"
-RESULT_DIR = "/usr/local/zima/results" #mirrored in testcase.xml
+RESULT_DIR = "/usr/local/zima/results"
+template_loader = jinja2.ChoiceLoader([app.jinja_loader, jinja2.FileSystemLoader(RESULT_DIR)])
+app.jinja_loader = template_loader
 token_lock = Lock()
 TOKEN_FILE = "/usr/local/zima/tokens"
 BAMBOO_URL = "http://tools/bamboo/rest/api/latest/queue/MASTER-MBRC.json?executeAllStages"
@@ -101,7 +106,7 @@ def kick():
             parent_build_id, branch = deactivate_token(tok)
             mbrc_id = start_bamboo_job(tok, parent_build_id, branch)
             core_view_repoint(parent_build_id, mbrc_id, tok)
-            return (tok, 200)#only process one token at a time
+            return (tok+'\n', 200)#only process one token at a time
     return ('none complete', 200)
 
 def submit_results(token):#init awfy, go through files and send results, finalize awfy

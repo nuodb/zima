@@ -1,8 +1,8 @@
 <testcase classname="tc.name" name="tc.name" time="{{ tc.run_time_seconds }}">
 <system-out><![CDATA[
-{% include "/usr/local/zima/results/" ~ aggregate_data.token ~ "/OAR." ~ tc.jobid ~ ".stdout" %}
+{% include aggregate_data.token ~ "/OAR." ~ tc.jobid ~ ".stdout" %}
 ]]></system-out>
 <system-err><![CDATA[
-{% include "/usr/local/zima/results/" ~ aggregate_data.token ~ "/OAR." ~ tc.jobid ~ ".stderr" %}
+{% include aggregate_data.token ~ "/OAR." ~ tc.jobid ~ ".stderr" %}
 ]]></system-err>
 </testcase>
