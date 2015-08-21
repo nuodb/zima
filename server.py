@@ -1,4 +1,4 @@
-import os, md5, re, time, json, urllib2, subprocess, logging, random, string
+import os, md5, re, time, json, urllib, urllib2, subprocess, logging, random, string
 from flask import Flask, render_template, send_from_directory, request, jsonify, g
 from artifact_link_finder import get_link, NoSuchBuildException
 from logging.handlers import RotatingFileHandler
