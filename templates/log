@@ -1,5 +1,5 @@
 {% for logfile in filenames %}
-{% include "/usr/local/zima/results/" ~ token ~ logfile %}
+{% include "/usr/local/zima/results/" ~ token ~ "/" ~ logfile %}
 {% endfor %}
 
 
