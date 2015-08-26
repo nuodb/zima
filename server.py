@@ -29,7 +29,10 @@ def submit_single(test_def_fn, test_def, parent_build_id, token):
     if error:
         return {'out':'', 'err': error}
     #ALEX: this should take switch into account
-    properties = "{ssd=1}/host=%s+{ssd=0}/host=%s" % (job_desc['NUM_SM_HOSTS'], job_desc['NUM_TE_HOSTS'])
+    if job_desc['NUM_SM_HOSTS'] == '0':
+        properties = "{ssd=0}/host=%s" % (job_desc['NUM_TE_HOSTS'])
+    else:
+        properties = "{ssd=1}/host=%s+{ssd=0}/host=%s" % (job_desc['NUM_SM_HOSTS'], job_desc['NUM_TE_HOSTS'])
     cmd = ["oarsub"]
     cmd.append("-l")
     cmd.append(properties)
@@ -104,7 +107,7 @@ def kick():
         if oar_complete(tok):
             submit_results(tok)
             parent_build_id, branch = deactivate_token(tok)
-            mbrc_id = start_bamboo_job(tok, parent_build_id, branch)
+            mbrc_id = start_bamboo_job(tok, parent_build_id, branch)#ALEX: this can fail: try/except
             core_view_repoint(parent_build_id, mbrc_id, tok)
             return (tok+'\n', 200)#only process one token at a time
     return ('none complete', 200)
