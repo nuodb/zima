@@ -54,7 +54,7 @@ def submit_single(test_def_fn, test_def, parent_build_id, token):
 def submit_micro(branch, build_id):
     cmd = ["oarsub"]
     cmd.append("-l")
-    cmd.append("/host=1,walltime=4:0:0")
+    cmd.append("{ssd=0}/host=1,walltime=4:0:0")
     cmd.append("-d")
     cmd.append("/var/local")
     cmd.append("TERM=dumb /home/build/arewefastyet/kickoff-micro -i 5 {} micro {} MASTER".format(build_id, branch))
