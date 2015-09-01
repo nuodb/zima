@@ -1,0 +1,7 @@
+#!/usr/bin/env python
+import json
+
+TOKEN_FILE = "/usr/local/zima/tokens"
+
+with open(TOKEN_FILE, 'r') as fd:
+    print json.dumps(json.load(fd), sort_keys=True, indent=4, separators=(',', ': '))
