@@ -76,7 +76,7 @@ def submit(suite, parent_build_id, token):
 
 @app.route('/cancel_runnable/<token>')
 def cancel_runnable(token):
-    p = subprocess.Popen(["oardel", "--sql", "project = '{}' AND state in ('Waiting')".format(tok)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(["oardel", "--sql", "project = '{}' AND state in ('Waiting')".format(token)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     return {'out':out, 'err':err}
     #cancel the running ones too? nope ... that's halt
@@ -85,7 +85,7 @@ def cancel_runnable(token):
 
 @app.route('/halt_runnable/<token>')
 def halt_runnable(token):
-    p = subprocess.Popen(["oardel", "--sql", "project = '{}' AND state not in ('Terminated', 'Error')".format(tok)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(["oardel", "--sql", "project = '{}' AND state not in ('Terminated', 'Error')".format(token)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     return {'out':out, 'err':err}
 
