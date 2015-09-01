@@ -42,7 +42,7 @@ def submit_single(test_def_fn, test_def, parent_build_id, token):
     cmd.append("/var/local")
     cmd.append("/home/build/perf/runner {} {} {}".format(test_def_fn, parent_build_id, token))
     #app.logger.info("command: {}".format(" ".join(cmd)))
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     return {'out':out, 'err':err}
 
@@ -60,7 +60,7 @@ def submit_micro(branch, build_id):
     cmd.append("TERM=dumb /home/build/arewefastyet/kickoff-micro -i 5 {} micro {} MASTER".format(build_id, branch))
     #can't make it optional in kickoff, so hardcode since we don't gather-cores for micro anyway
     app.logger.info("command: {}".format(" ".join(cmd)))
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     return {'out':out, 'err':err}
 
@@ -73,6 +73,21 @@ def submit(suite, parent_build_id, token):
         app.logger.info("calling submit_single with job: {}".format(fn))
         result[fn] = submit_single(fn, test_def, parent_build_id, token)
     return result
+
+@app.route('/cancel_runnable/<token>')
+def cancel_runnable(token):
+    p = subprocess.Popen(["oardel", "--sql", "project = '{}' AND state in ('Waiting')".format(tok)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out, err) = p.communicate()
+    return {'out':out, 'err':err}
+    #cancel the running ones too? nope ... that's halt
+    #never cancel jobs that are already done
+    #when to deactivate the token? at next kick
+
+@app.route('/halt_runnable/<token>')
+def halt_runnable(token):
+    p = subprocess.Popen(["oardel", "--sql", "project = '{}' AND state not in ('Terminated', 'Error')".format(tok)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out, err) = p.communicate()
+    return {'out':out, 'err':err}
 
 @app.route('/enqueue')
 def enqueue():
@@ -105,12 +120,17 @@ def kick():
     tokens = get_active_tokens()
     for tok in tokens:
         if oar_complete(tok):
-            submit_results(tok)
             parent_build_id, branch = deactivate_token(tok)
+            if short_circuit(tok):
+                return (tok+' was noop\n', 200)
+            submit_results(tok)
             mbrc_id = start_bamboo_job(tok, parent_build_id, branch)#ALEX: this can fail: try/except
             core_view_repoint(parent_build_id, mbrc_id, tok)
             return (tok+'\n', 200)#only process one token at a time
-    return ('none complete', 200)
+    return ('none complete\n', 200)
+
+def short_circuit(token):
+    return len(os.listdir(os.path.join(RESULT_DIR, token))) == 0
 
 def submit_results(token):#init awfy, go through files and send results, finalize awfy
     pass #not implemented yet...
@@ -147,7 +167,7 @@ def deactivate_token(tok):
                 json.dump(tokens, fd)
                 return parent_build_id, branch
         except:
-            app.logger.warn("deactivate_token: open/loads/remove/seek/dump failed")
+            app.logger.warn("deactivate_token: open/loads/remove/seek/dump failed")#ALEX: don't swallow
 
 def activate_token(tok, parent_build_id, branch):
     with token_lock:
@@ -211,7 +231,7 @@ def get_job_data(token):
     for jobid in jobids:
         cmd.append("-j")
         cmd.append(jobid)
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()#ALEX: handle error
     obj = json.loads(out)
 
