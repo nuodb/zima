@@ -30,9 +30,9 @@ def submit_single(test_def_fn, test_def, parent_build_id, token):
         return {'out':'', 'err': error}
     #ALEX: this should take switch into account
     if job_desc['NUM_SM_HOSTS'] == '0':
-        properties = "{ssd=0}/host=%s" % (job_desc['NUM_TE_HOSTS'])
+        properties = "/host=%s" % (job_desc['NUM_TE_HOSTS'])
     else:
-        properties = "{ssd=1}/host=%s+{ssd=0}/host=%s" % (job_desc['NUM_SM_HOSTS'], job_desc['NUM_TE_HOSTS'])
+        properties = "{ssd=1}/host=%s+/host=%s" % (job_desc['NUM_SM_HOSTS'], job_desc['NUM_TE_HOSTS'])
     cmd = ["oarsub"]
     cmd.append("-l")
     cmd.append(properties)
@@ -54,7 +54,7 @@ def submit_single(test_def_fn, test_def, parent_build_id, token):
 def submit_micro(branch, build_id):
     cmd = ["oarsub"]
     cmd.append("-l")
-    cmd.append("{ssd=0}/host=1,walltime=4:0:0")
+    cmd.append("/host=1,walltime=4:0:0")
     cmd.append("-d")
     cmd.append("/var/local")
     cmd.append("TERM=dumb /home/build/arewefastyet/kickoff-micro -i 5 {} micro {} MASTER".format(build_id, branch))
