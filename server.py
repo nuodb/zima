@@ -5,8 +5,6 @@ from logging.handlers import RotatingFileHandler
 from threading import Lock
 import jinja2
 
-
-
 app = Flask(__name__)
 app.debug = True
 handler = RotatingFileHandler('/tmp/zima.log', maxBytes=10000, backupCount=1)
@@ -74,21 +72,6 @@ def submit(suite, parent_build_id, token):
         result[fn] = submit_single(fn, test_def, parent_build_id, token)
     return result
 
-@app.route('/cancel_runnable/<token>')
-def cancel_runnable(token):
-    p = subprocess.Popen(["oardel", "--sql", "project = '{}' AND state in ('Waiting')".format(token)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out, err) = p.communicate()
-    return {'out':out, 'err':err}
-    #cancel the running ones too? nope ... that's halt
-    #never cancel jobs that are already done
-    #when to deactivate the token? at next kick
-
-@app.route('/halt_runnable/<token>')
-def halt_runnable(token):
-    p = subprocess.Popen(["oardel", "--sql", "project = '{}' AND state not in ('Terminated', 'Error')".format(token)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out, err) = p.communicate()
-    return {'out':out, 'err':err}
-
 @app.route('/enqueue')
 def enqueue():
     suite = request.args.get('suite', '', type=str)#optional
@@ -108,11 +91,44 @@ def enqueue_micro():
     result = submit_micro(branch, build_id)
     return json.dumps(result)
 
-#@app.route('/enqueue_single', methods=['POST'])
+@app.route('/enqueue_single_test/<filename>')
+def enqueue_single_test(filename):
+    branch = request.args.get('branch', 'master', type=str)
+    parent_build_id = request.args.get('buildid', type=str)#bamboo id for NPB, etc
+    try: #fail fast
+        build_url = get_link(parent_build_id)
+    except NoSuchBuildException:
+        return ("ERROR: no such build", 404)
+    try:
+        with open(os.path.join(TEST_DIR,filename), 'r') as fd:
+            test_def = fd.read()
+    except:
+        return ("ERROR: test description file not found", 404)
+    app.logger.info("calling submit_single with job: {}".format(filename))
+    result = submit_single(filename, test_def, parent_build_id, get_result_dir(parent_build_id, branch))
+    return json.dumps(result)
+
+#@app.route('/enqueue_single_desc', methods=['POST'])
 #def enqueue_single():
 #    file = request.files['file']
 #    buildID = request.form.get("branch", None)
 #    email = request.form.get("email", None)
+
+@app.route('/cancel_runnable/<token>')
+def cancel_runnable(token):
+    p = subprocess.Popen(["oardel", "--sql", "project = '{}' AND state in ('Waiting')".format(token)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out, err) = p.communicate()
+    return json.dumps({'out':out, 'err':err})
+#cancel the running ones too? nope ... that's halt
+#never cancel jobs that are already done
+#when to deactivate the token? at next kick
+#still says REGISTERED even though it's just fragging the waiting ones
+
+@app.route('/halt_runnable/<token>')
+def halt_runnable(token):
+    p = subprocess.Popen(["oardel", "--sql", "project = '{}' AND state not in ('Terminated', 'Error')".format(token)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out, err) = p.communicate()
+    return json.dumps({'out':out, 'err':err})
 
 #ALEX: this needs to be automated somehow...cron?
 @app.route('/kick')
