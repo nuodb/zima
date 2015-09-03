@@ -84,6 +84,47 @@ def enqueue():
     result = submit(suite, parent_build_id, get_result_dir(parent_build_id, branch))
     return json.dumps(result)
 
+@app.route('/enqueue_ross')
+def enqueue_ross():
+    branch = 'ross_consistency'
+    parent_build_id = 'ross_consistency'
+    result = submit('', parent_build_id, get_result_dir(parent_build_id, branch))
+    return json.dumps(result)
+
+def submit_ross(suite, parent_build_id, token):
+    result = {}
+    tests = [fn for fn in os.listdir(TEST_DIR) if suite in fn]
+    for fn in tests:
+        with open(os.path.join(TEST_DIR,fn), 'r') as fd:
+            test_def = fd.read()
+        result[fn] = submit_single_ross(fn, test_def, parent_build_id, token)
+    return result
+
+def submit_single_ross(test_def_fn, test_def, parent_build_id, token):
+    job_desc = parse_job_desc(test_def)
+    error = check_job_desc(job_desc)
+    if error:
+        return {'out':'', 'err': error}
+    #ALEX: this should take switch into account
+    if job_desc['NUM_SM_HOSTS'] == '0':
+        properties = "/host=%s" % (job_desc['NUM_TE_HOSTS'])
+    else:
+        properties = "{ssd=1}/host=%s+/host=%s" % (job_desc['NUM_SM_HOSTS'], job_desc['NUM_TE_HOSTS'])
+    cmd = ["oarsub"]
+    cmd.append("-l")
+    cmd.append(properties)
+    cmd.append("--project")
+    cmd.append(token)
+    cmd.append("-d")
+    cmd.append("/var/local")
+    cmd.append("-q")
+    cmd.append("hipri")
+    cmd.append("/home/build/perf/runner-ross {} {} {}".format(test_def_fn, parent_build_id, token))
+    #app.logger.info("command: {}".format(" ".join(cmd)))
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out, err) = p.communicate()
+    return {'out':out, 'err':err}
+
 @app.route('/enqueue_micro')
 def enqueue_micro():
     branch = request.args.get('branch', 'master', type=str)
@@ -186,6 +227,7 @@ def deactivate_token(tok):
             app.logger.warn("deactivate_token: open/loads/remove/seek/dump failed")#ALEX: don't swallow
 
 def activate_token(tok, parent_build_id, branch):
+    app.logger.info("activate token: {} {} {}".format(tok, parent_build_id, branch))
     with token_lock:
         try:
             with open(TOKEN_FILE, 'r+') as fd:
@@ -193,7 +235,7 @@ def activate_token(tok, parent_build_id, branch):
                 tokens[tok] = parent_build_id, branch
                 fd.seek(0)
                 json.dump(tokens, fd)
-        except:
+        except:#ALEX: this should be narrower (don't want to overwrite if some other error happened)
             with open(TOKEN_FILE, 'w') as fd:
                 tokens = {}
                 tokens[tok] = parent_build_id, branch
