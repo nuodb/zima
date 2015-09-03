@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+import json
+from collections import defaultdict
+
+TOKEN_FILE = "/usr/local/zima/tokens"
+
+with open(TOKEN_FILE, 'r') as fd:
+    obj = json.load(fd)
+
+br_tok = defaultdict(list)
+for tok, vec in obj.iteritems():
+    br_tok[vec[1]].append(vec[0]+", "+tok)
+
+for br, v in br_tok.iteritems():
+    v.sort()
+
+print json.dumps(br_tok, indent=4)
