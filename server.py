@@ -84,11 +84,11 @@ def enqueue():
     result = submit(suite, parent_build_id, get_result_dir(parent_build_id, branch))
     return json.dumps(result)
 
-@app.route('/enqueue_ross')
+@app.route('/ross')
 def enqueue_ross():
     branch = 'ross_consistency'
     parent_build_id = 'ross_consistency'
-    result = submit('', parent_build_id, get_result_dir(parent_build_id, branch))
+    result = submit_ross('', parent_build_id, get_result_dir(parent_build_id, branch))
     return json.dumps(result)
 
 def submit_ross(suite, parent_build_id, token):
@@ -171,7 +171,7 @@ def halt_runnable(token):
     (out, err) = p.communicate()
     return json.dumps({'out':out, 'err':err})
 
-#ALEX: this needs to be automated somehow...cron?
+# automated in /etc/cron.hourly/zima-kick
 @app.route('/kick')
 def kick():
     tokens = get_active_tokens()
@@ -179,12 +179,15 @@ def kick():
         if oar_complete(tok):
             parent_build_id, branch = deactivate_token(tok)
             if short_circuit(tok):
-                return (tok+' was noop\n', 200)
+                app.logger.info(tok+' was noop')
+                return ('',200)
             submit_results(tok)
             mbrc_id = start_bamboo_job(tok, parent_build_id, branch)#ALEX: this can fail: try/except
             core_view_repoint(parent_build_id, mbrc_id, tok)
-            return (tok+'\n', 200)#only process one token at a time
-    return ('none complete\n', 200)
+            app.logger.info(tok)#only process one token at a time
+            return ('', 200)
+    app.logger.info("none complete")
+    return ('', 200)
 
 def short_circuit(token):
     return len(os.listdir(os.path.join(RESULT_DIR, token))) == 0

@@ -16,3 +16,10 @@ ScriptAlias /zima "/usr/local/zima/run.fcgi"
 beautifulsoup4
 
 4. any other dependencies/authentication setup tasks
+
+/etc/cron.hourly/zima-kick
+#!/bin/sh
+#
+# send results from benchmarks over to bamboo
+
+curl "base/zima/kick" 1>/dev/null 2>&1
