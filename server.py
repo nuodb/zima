@@ -3,6 +3,8 @@ from flask import Flask, render_template, send_from_directory, request, jsonify,
 from artifact_link_finder import get_link, NoSuchBuildException
 from logging.handlers import RotatingFileHandler
 from threading import Lock
+from distutils.version import LooseVersion
+from collections import defaultdict
 import jinja2
 
 app = Flask(__name__)
@@ -334,9 +336,58 @@ def get_stderr(token):
     filenames.sort()
     return render_template('log', filenames=filenames, token=token)
 
+def get_queue_length():
+    p = subprocess.Popen(["oarstat"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    (out, err) = p.communicate()
+    return len(out.split("\n")) - 2
+
+def get_running_jobs():
+    p = subprocess.Popen(["oarstat", "--sql", "state = 'Running'"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    (out, err) = p.communicate()
+    return out
+
+def get_idle_nodes():
+    p = subprocess.Popen(["oarnodes", "-J"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out, err) = p.communicate()
+    oarnodes = json.loads(out)
+    res = []
+    for _,v in oarnodes.iteritems():
+        if "jobs" not in v:
+            res.append("{} {}".format(v["host"], v["state"]))
+    res.sort(key=LooseVersion)
+    return "\n".join(res)
+
+def jobs_per_token():
+    p = subprocess.Popen(["oarstat"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (oarstat, err) = p.communicate()
+    jobs = {}
+    regex =  re.compile(".*P=([A-Z]+)")
+    for line in oarstat.split('\n'):
+        m = regex.match(line)
+        if m:
+            if m.group(1) in jobs:
+                jobs[m.group(1)] = jobs[m.group(1)] + 1
+            else:
+                jobs[m.group(1)] = 1
+    return jobs
+
+def get_job_token_data():
+    jobs = jobs_per_token()
+    obj = get_active_tokens()
+    br_tok = defaultdict(list)
+    for tok, vec in obj.iteritems():
+        br_tok[vec[1]].append(vec[0]+", "+tok+", "+jobs[tok])
+    for br, v in br_tok.iteritems():
+        v.sort()
+    return br_tok
+
 @app.route('/')
 def show_index():
-    return render_template('index.html')
+    queue_length = get_queue_length()
+    running_jobs = get_running_jobs()
+    idle_nodes = get_idle_nodes()
+    job_data = json.dumps(get_job_token_data())
+    return render_template('index.html', queue_length=queue_length, running_jobs=running_jobs, idle_nodes=idle_nodes, job_data=job_data)
 
 def get_result_dir(parent_build_id, branch):
     while 1:
