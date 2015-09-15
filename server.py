@@ -337,14 +337,15 @@ def get_stderr(token):
     return render_template('log', filenames=filenames, token=token)
 
 def get_queue_length():
-    p = subprocess.Popen(["oarstat"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p = subprocess.Popen(["oarstat", "-J"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     (out, err) = p.communicate()
-    return len(out.split("\n")) - 2
+    obj = json.loads(out)
+    return len(obj)
 
 def get_running_jobs():
-    p = subprocess.Popen(["oarstat", "--sql", "state = 'Running'"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p = subprocess.Popen(["oarstat", "-J", "--sql", "state = 'Running'"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     (out, err) = p.communicate()
-    return out
+    return json.loads(out)
 
 def get_idle_nodes():
     p = subprocess.Popen(["oarnodes", "-J"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -355,7 +356,7 @@ def get_idle_nodes():
         if "jobs" not in v:
             res.append("{} {}".format(v["host"], v["state"]))
     res.sort(key=LooseVersion)
-    return "\n".join(res)
+    return res
 
 def jobs_per_token():
     p = subprocess.Popen(["oarstat"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -383,11 +384,11 @@ def get_job_token_data():
 
 @app.route('/')
 def show_index():
-    queue_length = get_queue_length()
-    running_jobs = get_running_jobs()
-    idle_nodes = get_idle_nodes()
-    job_data = json.dumps(get_job_token_data())
-    return render_template('index.html', queue_length=queue_length, running_jobs=running_jobs, idle_nodes=idle_nodes, job_data=job_data)
+    return render_template('index.html', 
+                           queue_length=get_queue_length(),             #int
+                           running_jobs=json.dumps(get_running_jobs()), #list
+                           idle_nodes=json.dumps(get_idle_nodes()),     #list
+                           job_data=json.dumps(get_job_token_data()))   #dict
 
 def get_result_dir(parent_build_id, branch):
     while 1:
