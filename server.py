@@ -376,7 +376,7 @@ def get_job_token_data():
     obj = get_active_tokens()
     br_tok = defaultdict(list)
     for tok, vec in obj.iteritems():
-        br_tok[vec[1]].append(vec[0]+", "+tok+", "+jobs[tok])
+        br_tok[vec[1]].append(vec[0]+", "+tok+", "+str(jobs[tok]))
     for br, v in br_tok.iteritems():
         v.sort()
     return br_tok
