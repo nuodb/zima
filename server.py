@@ -1,5 +1,5 @@
 import os, md5, re, time, json, urllib, urllib2, subprocess, logging, random, string
-from flask import Flask, render_template, send_from_directory, request, jsonify, g
+from flask import Flask, render_template, send_from_directory, request, jsonify, g, redirect, url_for
 from artifact_link_finder import get_link, NoSuchBuildException
 from logging.handlers import RotatingFileHandler
 from threading import Lock
@@ -343,9 +343,9 @@ def get_queue_length():
     return len(obj)
 
 def get_running_jobs():
-    p = subprocess.Popen(["oarstat", "-J", "--sql", "state = 'Running'"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p = subprocess.Popen(["oarstat", "--sql", "state = 'Running'"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)#later: do it better with json output
     (out, err) = p.communicate()
-    return json.loads(out)
+    return out.split("\n")
 
 def get_idle_nodes():
     p = subprocess.Popen(["oarnodes", "-J"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -382,12 +382,20 @@ def get_job_token_data():
         v.sort()
     return br_tok
 
+@app.route('/unsuspect')
+def suspected_to_alive():
+    p = subprocess.Popen(["sudo", "oarnodesetting", "-s", "Alive", "--sql", "state = 'Suspected'"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out, err) = p.communicate()
+    if err:
+        return (err, 520)
+    return redirect(url_for('/'))
+
 @app.route('/')
 def show_index():
     return render_template('index.html', 
                            queue_length=get_queue_length(),             #int
-                           running_jobs=json.dumps(get_running_jobs()), #list
-                           idle_nodes=json.dumps(get_idle_nodes()),     #list
+                           running_jobs=get_running_jobs(), #list
+                           idle_nodes=get_idle_nodes(),     #list
                            job_data=json.dumps(get_job_token_data()))   #dict
 
 def get_result_dir(parent_build_id, branch):

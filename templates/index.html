@@ -40,9 +40,9 @@ text-align: left;
 </style>
 </head>
 <body>
-queue length: {{ queue_length }}<br/>
-running jobs: {{ running_jobs }}<br/><br/>
-idle nodes: {{ idle_nodes }} <br/><br/>
-job data: {{ jobs_data }}
+QUEUE LENGTH: {{ queue_length }}<br/><br/>
+RUNNING JOBS: <br/>{% for job in running_jobs %} {{ job }}<br/> {% endfor %}<br/>
+IDLE NODES: <a href="{{ request.script_root }}/unsuspect">Suspected -&gt; Alive</a><br/>{% for node in idle_nodes %} {{ node }} <br/> {% endfor %} <br/>
+JOB DATA: {{ job_data }} <br/><br/>
 </body>
 </html>
