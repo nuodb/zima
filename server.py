@@ -33,6 +33,7 @@ def submit_single(test_def_fn, test_def, parent_build_id, token):
         properties = "/host=%s" % (job_desc['NUM_TE_HOSTS'])
     else:
         properties = "{ssd=1}/host=%s+/host=%s" % (job_desc['NUM_SM_HOSTS'], job_desc['NUM_TE_HOSTS'])
+    #switch in here
     cmd = ["oarsub"]
     cmd.append("-l")
     cmd.append(properties)
@@ -388,7 +389,7 @@ def suspected_to_alive():
     (out, err) = p.communicate()
     if err:
         return (err, 520)
-    return redirect(url_for('/'))
+    return redirect('/')
 
 @app.route('/')
 def show_index():
