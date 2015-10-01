@@ -5,6 +5,7 @@ from logging.handlers import RotatingFileHandler
 from threading import Lock
 from distutils.version import LooseVersion
 from collections import defaultdict
+from datetime import datetime
 import jinja2
 
 app = Flask(__name__)
@@ -62,7 +63,8 @@ def submit_micro(branch, build_id):
     cmd.append("/var/local")
     cmd.append("TERM=dumb /home/build/arewefastyet/kickoff-micro -i 5 {} micro {} MASTER".format(build_id, branch))
     #can't make it optional in kickoff, so hardcode since we don't gather-cores for micro anyway
-    app.logger.info("command: {}".format(" ".join(cmd)))
+    now = str(datetime.now())
+    app.logger.info(now+" command: {}".format(" ".join(cmd)))
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     return {'out':out, 'err':err}
@@ -73,7 +75,8 @@ def submit(suite, parent_build_id, token, queue):
     for fn in tests:
         with open(os.path.join(TEST_DIR,fn), 'r') as fd:
             test_def = fd.read()
-        app.logger.info("calling submit_single with job: {}".format(fn))
+        now = str(datetime.now())
+        app.logger.info(now+" calling submit_single with job: {}".format(fn))
         result[fn] = submit_single(fn, test_def, parent_build_id, token, queue)
     return result
 
@@ -111,7 +114,8 @@ def enqueue_single_test(filename):
             test_def = fd.read()
     except:
         return ("ERROR: test description file not found", 404)
-    app.logger.info("calling submit_single with job: {}".format(filename))
+    now = str(datetime.now())
+    app.logger.info(now+ " calling submit_single with job: {}".format(filename))
     result = submit_single(filename, test_def, parent_build_id, get_result_dir(parent_build_id, branch), queue)
     return json.dumps(result)
 
@@ -141,18 +145,19 @@ def halt_runnable(token):
 @app.route('/kick')
 def kick():
     tokens = get_active_tokens()
+    now = str(datetime.now())
     for tok in tokens:
         if oar_complete(tok):
             parent_build_id, branch = deactivate_token(tok)
             if short_circuit(tok):
-                app.logger.info(tok+' was noop')
+                app.logger.info(now+" "+tok+' was noop')
                 return ('',200)
             submit_results(tok)
             mbrc_id = start_bamboo_job(tok, parent_build_id, branch)#ALEX: this can fail: try/except
             core_view_repoint(parent_build_id, mbrc_id, tok)
-            app.logger.info(tok)#only process one token at a time
+            app.logger.info(now+" "+tok)#only process one token at a time
             return ('', 200)
-    app.logger.info("none complete")
+    app.logger.info(now+" none complete")
     return ('', 200)
 
 def short_circuit(token):
@@ -165,7 +170,8 @@ def core_view_repoint(parent_build_id, mbrc_id, token):
     fd = urllib2.urlopen(CORE_VIEW_URL.format(parent_build_id, mbrc_id, token))
     resp = fd.read()
     if resp:
-        app.logger.warn("core_view_repoint: {}".format(resp))
+        now = str(datetime.now())
+        app.logger.warn(now+" core_view_repoint: {}".format(resp))
 
 def get_active_tokens():
     with token_lock:
@@ -193,10 +199,12 @@ def deactivate_token(tok):
                 json.dump(tokens, fd)
                 return parent_build_id, branch
         except:
-            app.logger.warn("deactivate_token: open/loads/remove/seek/dump failed")#ALEX: don't swallow
+            now = str(datetime.now())
+            app.logger.warn(now+" deactivate_token: open/loads/remove/seek/dump failed")#ALEX: don't swallow
 
 def activate_token(tok, parent_build_id, branch):
-    app.logger.info("activate token: {} {} {}".format(tok, parent_build_id, branch))
+    now = str(datetime.now())
+    app.logger.info(now+" activate token: {} {} {}".format(tok, parent_build_id, branch))
     with token_lock:
         try:
             with open(TOKEN_FILE, 'r+') as fd:
@@ -209,7 +217,7 @@ def activate_token(tok, parent_build_id, branch):
                 tokens = {}
                 tokens[tok] = parent_build_id, branch
                 json.dump(tokens, fd)
-            app.logger.warn("activate_token: open/loads/append/seek/dump failed")
+            app.logger.warn(now+" activate_token: open/loads/append/seek/dump failed")
 
 def start_bamboo_job(token, parent_build_id, branch):
     data = urllib.urlencode({"os_username" : "build", 
