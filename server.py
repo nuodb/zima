@@ -23,7 +23,7 @@ TOKEN_FILE = "/usr/local/zima/tokens"
 BAMBOO_URL = "http://tools/bamboo/rest/api/latest/queue/MASTER-MBRC.json?executeAllStages"
 CORE_VIEW_URL = "http://base/cores/repoint?parent={}&mbrc={}&token={}"
 
-def submit_single(test_def_fn, test_def, parent_build_id, token):
+def submit_single(test_def_fn, test_def, parent_build_id, token, queue):
     job_desc = parse_job_desc(test_def)
     error = check_job_desc(job_desc)
     if error:
@@ -41,6 +41,8 @@ def submit_single(test_def_fn, test_def, parent_build_id, token):
     cmd.append(token)
     cmd.append("-d")
     cmd.append("/var/local")
+    cmd.append("-q")
+    cmd.append(queue)
     cmd.append("/home/build/perf/runner {} {} {}".format(test_def_fn, parent_build_id, token))
     #app.logger.info("command: {}".format(" ".join(cmd)))
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -65,68 +67,28 @@ def submit_micro(branch, build_id):
     (out, err) = p.communicate()
     return {'out':out, 'err':err}
 
-def submit(suite, parent_build_id, token):
+def submit(suite, parent_build_id, token, queue):
     result = {}
     tests = [fn for fn in os.listdir(TEST_DIR) if suite in fn]
     for fn in tests:
         with open(os.path.join(TEST_DIR,fn), 'r') as fd:
             test_def = fd.read()
         app.logger.info("calling submit_single with job: {}".format(fn))
-        result[fn] = submit_single(fn, test_def, parent_build_id, token)
+        result[fn] = submit_single(fn, test_def, parent_build_id, token, queue)
     return result
 
 @app.route('/enqueue')
 def enqueue():
     suite = request.args.get('suite', '', type=str)#optional
     branch = request.args.get('branch', 'master', type=str)
+    queue = request.args.get('queue', 'default', type=str)
     parent_build_id = request.args.get('buildid', type=str)#bamboo id for NPB, etc
     try: #fail fast
         build_url = get_link(parent_build_id)
     except NoSuchBuildException:
         return ("ERROR: no such build", 404)
-    result = submit(suite, parent_build_id, get_result_dir(parent_build_id, branch))
+    result = submit(suite, parent_build_id, get_result_dir(parent_build_id, branch), queue)
     return json.dumps(result)
-
-@app.route('/ross')
-def enqueue_ross():
-    branch = 'ross_consistency'
-    parent_build_id = 'ross_consistency'
-    result = submit_ross('', parent_build_id, get_result_dir(parent_build_id, branch))
-    return json.dumps(result)
-
-def submit_ross(suite, parent_build_id, token):
-    result = {}
-    tests = [fn for fn in os.listdir(TEST_DIR) if suite in fn]
-    for fn in tests:
-        with open(os.path.join(TEST_DIR,fn), 'r') as fd:
-            test_def = fd.read()
-        result[fn] = submit_single_ross(fn, test_def, parent_build_id, token)
-    return result
-
-def submit_single_ross(test_def_fn, test_def, parent_build_id, token):
-    job_desc = parse_job_desc(test_def)
-    error = check_job_desc(job_desc)
-    if error:
-        return {'out':'', 'err': error}
-    #ALEX: this should take switch into account
-    if job_desc['NUM_SM_HOSTS'] == '0':
-        properties = "/host=%s" % (job_desc['NUM_TE_HOSTS'])
-    else:
-        properties = "{ssd=1}/host=%s+/host=%s" % (job_desc['NUM_SM_HOSTS'], job_desc['NUM_TE_HOSTS'])
-    cmd = ["oarsub"]
-    cmd.append("-l")
-    cmd.append(properties)
-    cmd.append("--project")
-    cmd.append(token)
-    cmd.append("-d")
-    cmd.append("/var/local")
-    cmd.append("-q")
-    cmd.append("hipri")
-    cmd.append("/home/build/perf/runner-ross {} {} {}".format(test_def_fn, parent_build_id, token))
-    #app.logger.info("command: {}".format(" ".join(cmd)))
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out, err) = p.communicate()
-    return {'out':out, 'err':err}
 
 @app.route('/enqueue_micro')
 def enqueue_micro():
@@ -139,6 +101,7 @@ def enqueue_micro():
 def enqueue_single_test(filename):
     branch = request.args.get('branch', 'master', type=str)
     parent_build_id = request.args.get('buildid', type=str)#bamboo id for NPB, etc
+    queue = request.args.get('queue', 'default', type=str)
     try: #fail fast
         build_url = get_link(parent_build_id)
     except NoSuchBuildException:
@@ -149,7 +112,7 @@ def enqueue_single_test(filename):
     except:
         return ("ERROR: test description file not found", 404)
     app.logger.info("calling submit_single with job: {}".format(filename))
-    result = submit_single(filename, test_def, parent_build_id, get_result_dir(parent_build_id, branch))
+    result = submit_single(filename, test_def, parent_build_id, get_result_dir(parent_build_id, branch), queue)
     return json.dumps(result)
 
 #@app.route('/enqueue_single_desc', methods=['POST'])
@@ -378,7 +341,7 @@ def get_job_token_data():
     obj = get_active_tokens()
     br_tok = defaultdict(list)
     for tok, vec in obj.iteritems():
-        br_tok[vec[1]].append(vec[0]+", "+tok+", "+str(jobs[tok]))
+        br_tok[vec[1]].append(vec[0]+", "+tok+", "+str(jobs.get(tok,"0")))
     for br, v in br_tok.iteritems():
         v.sort()
     return br_tok
@@ -389,7 +352,7 @@ def suspected_to_alive():
     (out, err) = p.communicate()
     if err:
         return (err, 520)
-    return redirect('/')
+    return redirect(url_for('show_index'))
 
 @app.route('/')
 def show_index():
@@ -397,7 +360,7 @@ def show_index():
                            queue_length=get_queue_length(),             #int
                            running_jobs=get_running_jobs(), #list
                            idle_nodes=get_idle_nodes(),     #list
-                           job_data=json.dumps(get_job_token_data()))   #dict
+                           job_data=get_job_token_data())   #dict
 
 def get_result_dir(parent_build_id, branch):
     while 1:

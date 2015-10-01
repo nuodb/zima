@@ -43,6 +43,6 @@ text-align: left;
 QUEUE LENGTH: {{ queue_length }}<br/><br/>
 RUNNING JOBS: <br/>{% for job in running_jobs %} {{ job }}<br/> {% endfor %}<br/>
 IDLE NODES: <a href="{{ request.script_root }}/unsuspect">Suspected -&gt; Alive</a><br/>{% for node in idle_nodes %} {{ node }} <br/> {% endfor %} <br/>
-JOB DATA: {{ job_data }} <br/><br/>
+JOB DATA: {% for rel,tokens in  job_data.iteritems() %} <br/> {{ rel }} <br/> {% for tok in tokens %} {{ tok }} <br/> {% endfor %} {% endfor %}<br/>
 </body>
 </html>
