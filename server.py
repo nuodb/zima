@@ -1,4 +1,17 @@
-import os, md5, re, time, json, urllib, urllib2, subprocess, logging, random, string
+import os
+import md5
+import re
+import time
+import json
+import urllib
+import urllib2
+import subprocess
+import logging
+import random
+import string
+import tarfile
+import jinja2
+
 from flask import Flask, render_template, send_from_directory, request, jsonify, g, redirect, url_for
 from artifact_link_finder import get_link, NoSuchBuildException
 from logging.handlers import RotatingFileHandler
@@ -6,7 +19,6 @@ from threading import Lock
 from distutils.version import LooseVersion
 from collections import defaultdict
 from datetime import datetime
-import jinja2
 
 app = Flask(__name__)
 app.debug = True
@@ -272,6 +284,17 @@ def get_junit(token):
     aggregate_data = aggregate(job_data)
     aggregate_data['token'] = token
     return render_template('junit.xml', aggregate_data=aggregate_data, job_data=job_data)
+
+@app.route('/get_logs/<token>')
+def get_logs(token):
+    if os.path.isfile(os.path.join(RESULT_DIR, token, "logs.tgz")):
+        return send_from_directory(os.path.join(RESULT_DIR,token),"logs.tgz")
+    filenames = [fn for fn in os.listdir(os.path.join(RESULT_DIR, token)) if os.path.isfile(os.path.join(RESULT_DIR,token,fn)) and fn[0:4] == 'OAR.']
+    filenames.sort()
+    with tarfile.open(os.path.join(RESULT_DIR,token,"logs.tgz"), "w:gz") as logs_tgz:
+        for fn in filenames:
+            logs_tgz.add(os.path.join(RESULT_DIR, token,fn), arcname=fn)
+    return send_from_directory(os.path.join(RESULT_DIR,token),"logs.tgz")
 
 @app.route('/get_stdout/<token>')
 def get_stdout(token):

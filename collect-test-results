@@ -1,7 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 TOKEN=$1
 
 curl -s base/zima/get_junit/$1 > test-report.xml
-curl -s base/zima/get_stdout/$1 
-curl -s base/zima/get_stderr/$1 1>&2  # you don't see that every day
+curl -s base/zima/get_logs/$1 > logs.tgz
+tar zxf logs.tgz
+for x in OAR*out; do cat $x; cat ${x/out/err} >&2 ; done
