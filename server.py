@@ -252,6 +252,8 @@ def get_job_data(token):
         job_data[jobid]['run_time_seconds'] = run_time_seconds
         with open(os.path.join(RESULT_DIR, token, 'OAR.'+jobid+'.stdout'), 'r') as fd:
             name = fd.readline().strip()
+        if os.stat(os.path.join(RESULT_DIR, token, 'OAR.'+jobid+'.stderr')).st_size:
+            job_data[jobid]['nonempty_error'] = True
         job_data[jobid]['name'] = name
     return job_data.values()
 

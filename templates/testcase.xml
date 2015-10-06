@@ -2,5 +2,9 @@
 <system-out><![CDATA[
 {% include aggregate_data.token ~ "/OAR." ~ tc.jobid ~ ".stdout" %}
 ]]></system-out>
-<error>{% include aggregate_data.token ~ "/OAR." ~ tc.jobid ~ ".stderr" %}</error>
+{% if tc.nonempty_error %}
+<error><![CDATA[
+{% include aggregate_data.token ~ "/OAR." ~ tc.jobid ~ ".stderr" %}
+]]></error>
+{% endif %}
 </testcase>
