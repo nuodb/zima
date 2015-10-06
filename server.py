@@ -15,7 +15,6 @@ handler.setLevel(logging.INFO)
 app.logger.addHandler(handler)
 app.config['PROPAGATE_EXCEPTIONS'] = True
 TEST_DIR = "/usr/local/zima/properties"
-#TEST_DIR = "/usr/local/zima/test-properties"
 RESULT_DIR = "/usr/local/zima/results"
 template_loader = jinja2.ChoiceLoader([app.jinja_loader, jinja2.FileSystemLoader(RESULT_DIR)])
 app.jinja_loader = template_loader
@@ -29,12 +28,11 @@ def submit_single(test_def_fn, test_def, parent_build_id, token, queue):
     error = check_job_desc(job_desc)
     if error:
         return {'out':'', 'err': error}
-    #ALEX: this should take switch into account
+    #properties should take switch into account
     if job_desc['NUM_SM_HOSTS'] == '0':
         properties = "/host=%s" % (job_desc['NUM_TE_HOSTS'])
     else:
         properties = "{ssd=1}/host=%s+/host=%s" % (job_desc['NUM_SM_HOSTS'], job_desc['NUM_TE_HOSTS'])
-    #switch in here
     cmd = ["oarsub"]
     cmd.append("-l")
     cmd.append(properties)
@@ -45,7 +43,6 @@ def submit_single(test_def_fn, test_def, parent_build_id, token, queue):
     cmd.append("-q")
     cmd.append(queue)
     cmd.append("/home/build/perf/runner {} {} {}".format(test_def_fn, parent_build_id, token))
-    #app.logger.info("command: {}".format(" ".join(cmd)))
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     return {'out':out, 'err':err}
@@ -63,8 +60,7 @@ def submit_micro(branch, build_id):
     cmd.append("/var/local")
     cmd.append("TERM=dumb /home/build/arewefastyet/kickoff-micro -i 5 {} micro {} MASTER".format(build_id, branch))
     #can't make it optional in kickoff, so hardcode since we don't gather-cores for micro anyway
-    now = str(datetime.now())
-    app.logger.info(now+" command: {}".format(" ".join(cmd)))
+    app.logger.info(get_now()+" command: {}".format(" ".join(cmd)))
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     return {'out':out, 'err':err}
@@ -75,8 +71,7 @@ def submit(suite, parent_build_id, token, queue):
     for fn in tests:
         with open(os.path.join(TEST_DIR,fn), 'r') as fd:
             test_def = fd.read()
-        now = str(datetime.now())
-        app.logger.info(now+" calling submit_single with job: {}".format(fn))
+        app.logger.info(get_now()+" calling submit_single with job: {}".format(fn))
         result[fn] = submit_single(fn, test_def, parent_build_id, token, queue)
     return result
 
@@ -114,8 +109,7 @@ def enqueue_single_test(filename):
             test_def = fd.read()
     except:
         return ("ERROR: test description file not found", 404)
-    now = str(datetime.now())
-    app.logger.info(now+ " calling submit_single with job: {}".format(filename))
+    app.logger.info(get_now()+ " calling submit_single with job: {}".format(filename))
     result = submit_single(filename, test_def, parent_build_id, get_result_dir(parent_build_id, branch), queue)
     return json.dumps(result)
 
@@ -141,23 +135,22 @@ def halt_runnable(token):
     (out, err) = p.communicate()
     return json.dumps({'out':out, 'err':err})
 
-# automated in /etc/cron.hourly/zima-kick
+# automated in base:/etc/cron.hourly/zima-kick
 @app.route('/kick')
 def kick():
     tokens = get_active_tokens()
-    now = str(datetime.now())
     for tok in tokens:
         if oar_complete(tok):
             parent_build_id, branch = deactivate_token(tok)
             if short_circuit(tok):
-                app.logger.info(now+" "+tok+' was noop')
+                app.logger.info(get_now()+" "+tok+' was noop')
                 return ('',200)
             submit_results(tok)
             mbrc_id = start_bamboo_job(tok, parent_build_id, branch)#ALEX: this can fail: try/except
             core_view_repoint(parent_build_id, mbrc_id, tok)
-            app.logger.info(now+" "+tok)#only process one token at a time
-            return ('', 200)
-    app.logger.info(now+" none complete")
+            app.logger.info(get_now()+" "+tok)
+            return ('', 200)#only process one token at a time
+    app.logger.info(get_now()+" none complete")
     return ('', 200)
 
 def short_circuit(token):
@@ -170,8 +163,7 @@ def core_view_repoint(parent_build_id, mbrc_id, token):
     fd = urllib2.urlopen(CORE_VIEW_URL.format(parent_build_id, mbrc_id, token))
     resp = fd.read()
     if resp:
-        now = str(datetime.now())
-        app.logger.warn(now+" core_view_repoint: {}".format(resp))
+        app.logger.warn(get_now()+" core_view_repoint: {}".format(resp))
 
 def get_active_tokens():
     with token_lock:
@@ -199,12 +191,10 @@ def deactivate_token(tok):
                 json.dump(tokens, fd)
                 return parent_build_id, branch
         except:
-            now = str(datetime.now())
-            app.logger.warn(now+" deactivate_token: open/loads/remove/seek/dump failed")#ALEX: don't swallow
+            app.logger.warn(get_now()+" deactivate_token: open/loads/remove/seek/dump failed")#ALEX: don't swallow
 
 def activate_token(tok, parent_build_id, branch):
-    now = str(datetime.now())
-    app.logger.info(now+" activate token: {} {} {}".format(tok, parent_build_id, branch))
+    app.logger.info(get_now()+" activate token: {} {} {}".format(tok, parent_build_id, branch))
     with token_lock:
         try:
             with open(TOKEN_FILE, 'r+') as fd:
@@ -217,7 +207,7 @@ def activate_token(tok, parent_build_id, branch):
                 tokens = {}
                 tokens[tok] = parent_build_id, branch
                 json.dump(tokens, fd)
-            app.logger.warn(now+" activate_token: open/loads/append/seek/dump failed")
+            app.logger.warn(get_now()+" activate_token: open/loads/append/seek/dump failed")
 
 def start_bamboo_job(token, parent_build_id, branch):
     data = urllib.urlencode({"os_username" : "build", 
@@ -269,7 +259,6 @@ def get_job_data(token):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()#ALEX: handle error
     obj = json.loads(out)
-
     for jobid in jobids:
         status = obj[jobid]["exit_code"] #ALEX: that can be null
         run_time_seconds = obj[jobid]["stopTime"] - obj[jobid]["startTime"]
@@ -392,6 +381,9 @@ def check_job_desc(job_desc):
         return None
     else:
         return errstr
+
+def get_now():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 if __name__=="__main__":
     handler = RotatingFileHandler('/tmp/zima.log', maxBytes=10000, backupCount=1)

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<testsuite errors="0" failures="{{ aggregate_data.failures }}" name="multihost_benchmarks" tests="{{ aggregate_data.tests }}" time="{{ aggregate_data.totaltime }}">
+<testsuite failures="0" errors="{{ aggregate_data.failures }}" name="multihost_benchmarks" tests="{{ aggregate_data.tests }}" time="{{ aggregate_data.totaltime }}">
 {% for tc in job_data %}
 {% include "testcase.xml" %}
 {% endfor %}
