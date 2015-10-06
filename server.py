@@ -222,20 +222,6 @@ def start_bamboo_job(token, parent_build_id, branch):
 def get_test_def(filename):
     return send_from_directory(TEST_DIR, filename)
 
-@app.route('/job_status')
-def job_status():
-    return ("ERROR: not yet implemented", 501)
-
-@app.route('/node_status')
-def node_status():
-    return ("ERROR: not yet implemented", 501)
-
-@app.route('/build_status')
-def build_status():
-    #synthetic based on 'project' in the OAR job
-    # confirmed: www-data user can exec oarsub
-    return ("ERROR: not yet implemented", 501)
-
 @app.route('/artifact_collect', methods=['POST'])
 def artifact_collect():
     artifact = request.files['artifact']
@@ -354,7 +340,7 @@ def suspected_to_alive():
 @app.route('/')
 def show_index():
     return render_template('index.html', 
-                           queue_length=get_queue_length(),             #int
+                           queue_length=get_queue_length(), #int
                            running_jobs=get_running_jobs(), #list
                            idle_nodes=get_idle_nodes(),     #list
                            job_data=get_job_token_data())   #dict
