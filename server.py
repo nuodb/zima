@@ -296,6 +296,10 @@ def get_logs(token):
             logs_tgz.add(os.path.join(RESULT_DIR, token,fn), arcname=fn)
     return send_from_directory(os.path.join(RESULT_DIR,token),"logs.tgz")
 
+@app.route('/get_artifacts/<token>/<test_def>')
+def get_artifacts(token,test_def):
+    return send_from_directory(os.path.join(RESULT_DIR,token), test_def+".tgz")
+
 def get_queue_length():
     p = subprocess.Popen(["oarstat", "-J"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     (out, err) = p.communicate()
