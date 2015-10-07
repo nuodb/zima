@@ -296,18 +296,6 @@ def get_logs(token):
             logs_tgz.add(os.path.join(RESULT_DIR, token,fn), arcname=fn)
     return send_from_directory(os.path.join(RESULT_DIR,token),"logs.tgz")
 
-@app.route('/get_stdout/<token>')
-def get_stdout(token):
-    filenames = [fn for fn in os.listdir(os.path.join(RESULT_DIR, token)) if os.path.isfile(os.path.join(RESULT_DIR,token,fn)) and fn[0:4] == 'OAR.' and fn[-7:] == '.stdout']
-    filenames.sort()
-    return render_template('log', filenames=filenames, token=token)
-
-@app.route('/get_stderr/<token>')
-def get_stderr(token):
-    filenames = [fn for fn in os.listdir(os.path.join(RESULT_DIR, token)) if os.path.isfile(os.path.join(RESULT_DIR,token,fn)) and fn[0:4] == 'OAR.' and fn[-7:] == '.stderr']
-    filenames.sort()
-    return render_template('log', filenames=filenames, token=token)
-
 def get_queue_length():
     p = subprocess.Popen(["oarstat", "-J"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     (out, err) = p.communicate()

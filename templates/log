@@ -1,5 +1,0 @@
-{% for logfile in filenames %}
-{% include token ~ "/" ~ logfile %}
-{% endfor %}
-
-
