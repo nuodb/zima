@@ -348,6 +348,10 @@ def get_job_token_data():
 
 @app.route('/unsuspect')
 def suspected_to_alive():
+    p = subprocess.Popen(["oarnodes", "-J", "--sql", "state = 'Dead'"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out, err) = p.communicate()
+    obj = json.loads(out)
+    app.logger.info(get_now()+" unsuspecting: {}".format(" ".join([obj[resource]["host"] for resource in obj])))
     p = subprocess.Popen(["sudo", "oarnodesetting", "-s", "Alive", "--sql", "state = 'Suspected'"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     if err:
