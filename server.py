@@ -19,6 +19,7 @@ from threading import Lock
 from distutils.version import LooseVersion
 from collections import defaultdict
 from datetime import datetime
+from threading import Thread
 
 app = Flask(__name__)
 app.debug = True
@@ -28,6 +29,7 @@ app.logger.addHandler(handler)
 app.config['PROPAGATE_EXCEPTIONS'] = True
 TEST_DIR = "/usr/local/zima/properties"
 RESULT_DIR = "/usr/local/zima/results"
+BUILD_DIR = "/usr/local/zima/build_cache"
 template_loader = jinja2.ChoiceLoader([app.jinja_loader, jinja2.FileSystemLoader(RESULT_DIR)])
 app.jinja_loader = template_loader
 token_lock = Lock()
@@ -87,6 +89,17 @@ def submit(suite, parent_build_id, token, queue):
         result[fn] = submit_single(fn, test_def, parent_build_id, token, queue)
     return result
 
+def cache_build(build_url, buildid):
+    if os.path.exists(os.path.join(BUILD_DIR,buildid)):
+        return
+    fd0 = urllib2.urlopen(build_url)
+    with open(os.path.join(BUILD_DIR,buildid), 'w') as fd1:#try/except for anything?
+        fd1.write(fd0)
+
+@app.route('/get_build/<buildid>')
+def get_build(buildid):
+    return send_from_directory(BUILD_DIR, buildid)
+
 @app.route('/enqueue')
 def enqueue():
     suite = request.args.get('suite', '', type=str)#optional
@@ -97,6 +110,8 @@ def enqueue():
         build_url = get_link(parent_build_id)
     except NoSuchBuildException:
         return ("ERROR: no such build", 404)
+    thr = Thread(target=cache_build, args=[build_url, parent_build_id])
+    thr.start()
     result = submit(suite, parent_build_id, get_result_dir(parent_build_id, branch), queue)
     return json.dumps(result)
 
