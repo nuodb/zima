@@ -34,7 +34,7 @@ template_loader = jinja2.ChoiceLoader([app.jinja_loader, jinja2.FileSystemLoader
 app.jinja_loader = template_loader
 token_lock = Lock()
 TOKEN_FILE = "/usr/local/zima/tokens"
-BAMBOO_URL = "http://tools/bamboo/rest/api/latest/queue/MASTER-MBRC.json?executeAllStages"
+BAMBOO_URL = "http://tools/bamboo/rest/api/latest/queue/BENCH-MBRC.json?executeAllStages"
 CORE_VIEW_URL = "http://base/cores/repoint?parent={}&mbrc={}&token={}"
 
 def submit_single(test_def_fn, test_def, parent_build_id, token, queue):
