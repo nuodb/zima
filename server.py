@@ -92,9 +92,11 @@ def submit(suite, parent_build_id, token, queue):
 def cache_build(build_url, buildid):
     if os.path.exists(os.path.join(BUILD_DIR,buildid)):
         return
-    fd0 = urllib2.urlopen(build_url)
-    with open(os.path.join(BUILD_DIR,buildid), 'w') as fd1:#try/except for anything?
-        fd1.write(fd0)
+    urlfile =  urllib.URLopener()
+    urlfile.retrieve(build_url, os.path.join(BUILD_DIR,buildid))
+#    fd0 = urllib2.urlopen(build_url)
+#    with open(os.path.join(BUILD_DIR,buildid), 'w') as fd1:#try/except for anything?
+#        fd1.write(fd0)
     app.logger.info(get_now()+"caching build {}".format(buildid))
 
 @app.route('/get_build/<buildid>')
