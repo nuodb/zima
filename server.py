@@ -93,6 +93,7 @@ def cache_build(build_url, buildid):
     if os.path.exists(os.path.join(BUILD_DIR,buildid)):
         return
     urlfile =  urllib.URLopener()
+    app.logger.info(get_now()+"caching url {}".format(build_url))
     urlfile.retrieve(build_url, os.path.join(BUILD_DIR,buildid))
 #    fd0 = urllib2.urlopen(build_url)
 #    with open(os.path.join(BUILD_DIR,buildid), 'w') as fd1:#try/except for anything?
@@ -101,7 +102,16 @@ def cache_build(build_url, buildid):
 
 @app.route('/get_build/<buildid>')
 def get_build(buildid):
-    return send_from_directory(BUILD_DIR, buildid)
+    if not os.path.exists(os.path.join(BUILD_DIR,buildid)):
+        # The build files isn't there, so try and cache again.
+        try: #fail fast
+            build_url = get_link(buildid)
+        except NoSuchBuildException:
+            return ("ERROR: no such build", 404)
+        if build_url != None:
+            cache_build(build_url, buildid)
+
+    return send_from_directory(BUILD_DIR, buildid)    
 
 @app.route('/enqueue')
 def enqueue():
@@ -113,8 +123,10 @@ def enqueue():
         build_url = get_link(parent_build_id)
     except NoSuchBuildException:
         return ("ERROR: no such build", 404)
-    thr = Thread(target=cache_build, args=[build_url, parent_build_id])
-    thr.start()
+    
+    if build_url != None:
+        thr = Thread(target=cache_build, args=[build_url, parent_build_id])
+        thr.start()
     result = submit(suite, parent_build_id, get_result_dir(parent_build_id, branch), queue)
     return json.dumps(result)
 
