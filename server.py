@@ -92,13 +92,24 @@ def submit(suite, parent_build_id, token, queue):
 def cache_build(build_url, buildid):
     if os.path.exists(os.path.join(BUILD_DIR,buildid)):
         return
-    fd0 = urllib2.urlopen(build_url)
-    with open(os.path.join(BUILD_DIR,buildid), 'w') as fd1:#try/except for anything?
-        fd1.write(fd0)
+    urlfile =  urllib.URLopener()
+    app.logger.info(get_now()+"caching url {}".format(build_url))
+    urlfile.retrieve(build_url, os.path.join(BUILD_DIR,buildid))
     app.logger.info(get_now()+"caching build {}".format(buildid))
 
 @app.route('/get_build/<buildid>')
 def get_build(buildid):
+    if not os.path.exists(os.path.join(BUILD_DIR,buildid)):
+        # The build file isn't there, so try and cache again.
+        try: #fail fast
+            build_url = get_link(buildid)
+        except NoSuchBuildException:
+            return ("ERROR: no such build", 404)
+        if build_url != None:
+            cache_build(build_url, buildid)
+        else:
+            return ("Build artifact download URL is empty.")
+
     return send_from_directory(BUILD_DIR, buildid)
 
 @app.route('/enqueue')
@@ -111,8 +122,13 @@ def enqueue():
         build_url = get_link(parent_build_id)
     except NoSuchBuildException:
         return ("ERROR: no such build", 404)
-    thr = Thread(target=cache_build, args=[build_url, parent_build_id])
-    thr.start()
+
+    if build_url != None:
+        # If we can find the build artifact download, try to cache a
+        # copy of it.  If not we will try again when we call
+        # get_build.
+        thr = Thread(target=cache_build, args=[build_url, parent_build_id])
+        thr.start()
     result = submit(suite, parent_build_id, get_result_dir(parent_build_id, branch), queue)
     return json.dumps(result)
 
